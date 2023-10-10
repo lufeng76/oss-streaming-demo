@@ -154,5 +154,5 @@ bin/connect-standalone.sh \
   config/connect-standalone.properties \
   config/cps-source-connector.properties
 ```
-`Make sure stop the Kafka connector after demo. Otherwise the Kafka will use a large amount storage`
+<mark>Make sure stop the Kafka connector after demo. Otherwise the Kafka will use a large amount storage</mark>
 

@@ -60,7 +60,7 @@ gcloud compute instances create ${KAFKA_VM} \
 ### 2. Install and configure the Kafka service
 You can follow the instruction [here](https://kafka.apache.org/quickstart) or below script to install the Kafka service
 
-ssh into the Kafka VM, and execute the following script
+SHH into the Kafka VM, and execute the following script
 ```bash
 # install openjdk
 sudo apt install default-jre
@@ -82,7 +82,6 @@ bin/kafka-topics.sh --create --topic taxi-events --bootstrap-server localhost:90
 ```
 
 you can test the kafka using the following script(optional)
-
 ```bash
 # Create a Topic 
 bin/kafka-topics.sh --create --topic quickstart-events --bootstrap-server localhost:9092
@@ -94,3 +93,65 @@ bin/kafka-console-producer.sh --topic quickstart-events --bootstrap-server local
 bin/kafka-console-consumer.sh --topic quickstart-events --from-beginning --bootstrap-server localhost:9092
 ```
 
+### 3. Install and configure the Pub/Sub Kafka connector
+
+SSH into the Kafka VM, and execute the following script
+```bash
+export PROJECT=lufeng-demo
+export KAFKA_HOME=~/kafka_2.13-3.5.0
+
+# your user account
+export EMAIL_ADDRESS=admin@lufengsh.altostrat.com
+
+# set up authentication
+gcloud config set project ${PROJECT}
+gcloud auth application-default login
+gcloud projects add-iam-policy-binding ${PROJECT} --member="user:${EMAIL_ADDRESS}" --role=roles/pubsub.admin
+
+cd $KAFKA_HOME
+
+# download the connector JAR
+wget https://repo1.maven.org/maven2/com/google/cloud/pubsub-group-kafka-connector/1.2.0/pubsub-group-kafka-connector-1.2.0.jar
+
+# get the Kafka Connect configuration files
+sudo apt-get install git
+git clone https://github.com/googleapis/java-pubsub-group-kafka-connector.git
+cd java-pubsub-group-kafka-connector
+
+cp config/* ${KAFKA_HOME}/config/
+```
+
+Following the below instruction to update the Kafka connector configuration file
+1. Navigate to your Kafka directory.
+2. Open the file named ===config/connect-standalone.properties=== in a text editor.
+3. Make the following changes in the text editor, and save
+```bash
+key.converter=org.apache.kafka.connect.json.JsonConverter
+value.converter=org.apache.kafka.connect.json.JsonConverter
+
+offset.storage.file.filename=/tmp/connect.offsets
+
+# Specify the path to the connector JAR
+# example: plugin.path=/home/PubSubKafkaConnector/pubsub-group-kafka-connector-1.0.0.jar
+plugin.path=MODIFY_YOUR_PATH/pubsub-group-kafka-connector-1.2.0.jar
+```
+4. Open the file named ===config/cps-source-connector.properties=== in a text editor. Add values for the following properties.
+```bash
+# Set the key converter for the Pub/Sub source connector.
+key.converter=org.apache.kafka.connect.storage.StringConverter
+# Set the value converter for the Pub/Sub source connector.
+# value.converter=org.apache.kafka.connect.converters.ByteArrayConverter
+value.converter=org.apache.kafka.connect.json.JsonConverter
+
+kafka.topic=taxi-events
+cps.project=YOUR_PROJECT_ID
+cps.subscription=taxi-sub
+```
+
+After the configuration ,you can start the Kafka connector.=== Make sure you stop the connector after completing the demo
+```bash
+bin/connect-standalone.sh \
+  config/connect-standalone.properties \
+  config/cps-source-connector.properties
+```
+===Make sure you stop the connector after completing the demo===

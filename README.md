@@ -123,7 +123,7 @@ cp config/* ${KAFKA_HOME}/config/
 
 Following the below instruction to update the Kafka connector configuration file
 1. Navigate to your Kafka directory.
-2. Open the file named ===config/connect-standalone.properties=== in a text editor.
+2. Open the file named ==config/connect-standalone.properties== in a text editor.
 3. Make the following changes in the text editor, and save
 ```bash
 key.converter=org.apache.kafka.connect.json.JsonConverter
@@ -135,7 +135,7 @@ offset.storage.file.filename=/tmp/connect.offsets
 # example: plugin.path=/home/PubSubKafkaConnector/pubsub-group-kafka-connector-1.0.0.jar
 plugin.path=MODIFY_YOUR_PATH/pubsub-group-kafka-connector-1.2.0.jar
 ```
-4. Open the file named ===config/cps-source-connector.properties=== in a text editor. Add values for the following properties.
+4. Open the file named ==config/cps-source-connector.properties== in a text editor. Add values for the following properties.
 ```bash
 # Set the key converter for the Pub/Sub source connector.
 key.converter=org.apache.kafka.connect.storage.StringConverter
@@ -148,10 +148,10 @@ cps.project=YOUR_PROJECT_ID
 cps.subscription=taxi-sub
 ```
 
-After the configuration ,you can start the Kafka connector.=== Make sure you stop the connector after completing the demo
+After the configuration ,you can start the Kafka connector.
 ```bash
 bin/connect-standalone.sh \
   config/connect-standalone.properties \
   config/cps-source-connector.properties
 ```
-===Make sure you stop the connector after completing the demo===
+==Make sure you stop the connector after completing the demo==

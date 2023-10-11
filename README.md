@@ -294,3 +294,24 @@ org.apache.iceberg:iceberg-spark-runtime-${SPARK_VERSION}_2.12:${ICEBERG_VERSION
  --conf spark.sql.catalog.blms.warehouse=${WAREHOUSE_DIR} \
  streaming_read_iceberg.py
 ```
+
+## (Optional) Setup a looker real time dashboard
+1. Go to the BigQuery console and create a View.
+```sql
+create view iceberg_dataset.v_taxi as
+select
+  ride_id,
+  point_idx,
+  ROUND(CAST(latitude as FLOAT64),5) AS latitude,
+  ROUND(CAST(longitude as FLOAT64),5) AS longitude,
+  CAST(timestamp as timestamp) as ps_timestamp,
+  CAST(meter_reading as FLOAT64) AS meter_reading,
+  CAST(meter_increment as FLOAT64) AS meter_increment,
+  ride_status,
+  passenger_count,
+  publish,
+  TIMESTAMP_ADD(publish, INTERVAL 8 HOUR) AS sg_publish
+from iceberg_dataset.taxi_p
+```
+2. Fork your own LookML github repo from this [link](https://github.com/lufeng76/looker-stream-demo/tree/master)
+3. Build your own dash board by copying this [link](https://cloudceapac.cloud.looker.com/dashboards/210)

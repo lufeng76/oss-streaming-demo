@@ -154,5 +154,88 @@ bin/connect-standalone.sh \
   config/connect-standalone.properties \
   config/cps-source-connector.properties
 ```
-<mark>Make sure stop the Kafka connector after demo. Otherwise the Kafka will use a large amount storage</mark>
+**Make sure stop the Kafka connector after demo. Otherwise the Kafka will use a large amount storage**
+
+## Create a Dataproc cluster and the Biglake iceberg table
+
+Following the below instructions:
+1. Setup service account for dataproc
+```bash
+gcloud iam service-accounts create "${SA_NAME}" \
+--project ${PROJECT} \
+--description "Service account for Dataproc."
+
+gcloud projects add-iam-policy-binding "${PROJECT}" \
+--role roles/dataproc.worker \
+--member "serviceAccount:${SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
+
+gcloud projects add-iam-policy-binding "${PROJECT}" \
+--role roles/bigquery.connectionAdmin \
+--member "serviceAccount:${SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
+
+gcloud projects add-iam-policy-binding "${PROJECT}" \
+--role roles/bigquery.jobUser \
+--member "serviceAccount:${SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
+
+gcloud projects add-iam-policy-binding "${PROJECT}" \
+--role roles/bigquery.dataEditor \
+--member "serviceAccount:${SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
+
+gcloud projects add-iam-policy-binding "${PROJECT}" \
+--role roles/biglake.admin \
+--member "serviceAccount:${SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
+```
+2. Create BigQuery connection for BigLake table
+```bash
+bq mk --connection --location=us-central1 --project_id=${PROJECT} \
+  --connection_type=CLOUD_RESOURCE ${CONNECTION}
+
+bq show --connection ${PROJECT}.us-central1.${CONNECTION}
+
+SA_CONNECTION=$(bq show --format json --connection ${PROJECT}.us-central1.${CONNECTION}|jq -r '.cloudResource.serviceAccountId')
+
+gcloud projects add-iam-policy-binding "${PROJECT}" \
+--role roles/biglake.admin \
+--member "serviceAccount:${SA_CONNECTION}"
+
+gcloud projects add-iam-policy-binding "${PROJECT}" \
+--role roles/storage.objectViewer \
+--member "serviceAccount:${SA_CONNECTION}"
+```
+3. Create the dataset for the Biglake iceberg table
+```bash
+bq mk --dataset --location=us-central1 --project_id=${PROJECT} iceberg_dataset
+```
+4. Enable the BigQuery Connection, BigQuery Reservation, and BigLake APIs
+```bash
+gcloud services enable biglake.googleapis.com
+gcloud services enable bigqueryconnection.googleapis.com
+gcloud services enable bigqueryreservation.googleapis.com
+```
+
+5. Create a one node Dataproc cluster
+```bash
+gsutil cp init_iceberg.sh gs://${DATAPROC_BUCKET}/init_scripts/
+
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+--project ${PROJECT} \
+--single-node \
+--scopes cloud-platform \
+--region us-central1 \
+--enable-component-gateway \
+--subnet ${SUBNET} \
+--bucket ${DATAPROC_BUCKET} \
+--temp-bucket ${DATAPROC_BUCKET} \
+--service-account ${SA_NAME}@${PROJECT}.iam.gserviceaccount.com \
+--master-machine-type n2d-highmem-8 \
+--master-boot-disk-size 100 \
+--master-boot-disk-type pd-balanced \
+--image-version 2.1-debian11 \
+--optional-components "Flink" \
+--initialization-actions gs://${DATAPROC_BUCKET}/init_scripts/init_iceberg.sh \
+--metadata DATAPROC_BUCKET=${DATAPROC_BUCKET} \
+--metadata WAREHOUSE_DIR=${WAREHOUSE_DIR} \
+--metadata CONNECTION=${CONNECTION} \
+--metadata PROJECT=${PROJECT}
+```
 

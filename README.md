@@ -239,3 +239,58 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
 --metadata PROJECT=${PROJECT}
 ```
 
+## Demo Steps for biglake iceberg
+1. SSH into the master node of the Dataproc cluster, and then start the streaming write job
+```bash
+git clone https://github.com/lufeng76/oss-streaming-demo.git
+cd oss-streaming-demo
+
+export ICEBERG_VERSION=1.2.0
+export SPARK_VERSION=3.3
+export PROJECT=lufeng-demo
+export SUBNET=default
+export CLUSTER_NAME=streaming-demo-cluster
+export DATAPROC_BUCKET=lufeng-dataproc-bucket
+export WAREHOUSE_DIR=gs://lufeng-us-central1/iceberg
+export SA_NAME=lufeng-sa
+export CONNECTION=biglake-iceberg
+
+export KAFKA_IP_ADDRESS=YOUR_KAFKA_VM_IP
+export KAFKA_TOPIC=taxi-events
+
+spark-submit --packages \
+org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.0,\
+org.apache.spark:spark-streaming-kafka-0-10_2.12:3.1.3,\
+org.apache.iceberg:iceberg-spark-runtime-${SPARK_VERSION}_2.12:${ICEBERG_VERSION} \
+ --jars /usr/lib/flink/lib/biglake-catalog-iceberg${ICEBERG_VERSION}-0.1.0-with-dependencies.jar \
+ --conf spark.sql.iceberg.handle-timestamp-without-timezone=true \
+ --conf spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions \
+ --conf spark.sql.catalog.blms=org.apache.iceberg.spark.SparkCatalog \
+ --conf spark.sql.catalog.blms.catalog-impl=org.apache.iceberg.gcp.biglake.BigLakeCatalog \
+ --conf spark.sql.catalog.blms.gcp_project=${PROJECT} \
+ --conf spark.sql.catalog.blms.gcp_location=us-central1 \
+ --conf spark.sql.catalog.blms.blms_catalog=iceberg \
+ --conf spark.sql.catalog.blms.warehouse=${WAREHOUSE_DIR} \
+ streaming_write_iceberg.py $KAFKA_IP_ADDRESS $KAFKA_TOPIC
+```
+2. You can go to the BigQuery Console, and run the following query
+```sql
+select count(*) from iceberg_dataset.taxi_p;
+```
+Or, you can run the spark streaming job to read the latest data from the Biglake iceberg table
+```
+spark-submit --packages \
+org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.0,\
+org.apache.spark:spark-streaming-kafka-0-10_2.12:3.1.3,\
+org.apache.iceberg:iceberg-spark-runtime-${SPARK_VERSION}_2.12:${ICEBERG_VERSION} \
+ --jars /usr/lib/flink/lib/biglake-catalog-iceberg${ICEBERG_VERSION}-0.1.0-with-dependencies.jar \
+ --conf spark.sql.iceberg.handle-timestamp-without-timezone=true \
+ --conf spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions \
+ --conf spark.sql.catalog.blms=org.apache.iceberg.spark.SparkCatalog \
+ --conf spark.sql.catalog.blms.catalog-impl=org.apache.iceberg.gcp.biglake.BigLakeCatalog \
+ --conf spark.sql.catalog.blms.gcp_project=${PROJECT} \
+ --conf spark.sql.catalog.blms.gcp_location=us-central1 \
+ --conf spark.sql.catalog.blms.blms_catalog=iceberg \
+ --conf spark.sql.catalog.blms.warehouse=${WAREHOUSE_DIR} \
+ streaming_read_iceberg.py
+```
